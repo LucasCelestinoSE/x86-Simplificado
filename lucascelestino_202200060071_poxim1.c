@@ -20,6 +20,7 @@ int potencia(int x, int n){
         return x * potencia(x, n - 1);
 }
 int main(int argc, char* argv[]) {
+	uint8_t sr = 0;
 	// Exibindo a quantidade de argumentos
 	printf("Quantidade de argumentos (argc): %i\n", argc);
 	// Iterando sobre o(s) argumento(s) do programa
@@ -29,8 +30,9 @@ int main(int argc, char* argv[]) {
 	}
 	// Abrindo os arquivos com as permissoes corretas
 	//FILE* input = fopen(argv[1], "r");
-	FILE* output = fopen(argv[2], "w");
-	FILE* input = fopen(argv[1], "r");
+
+	FILE* input = fopen("intro.hex", "r");
+	FILE* output = fopen("intro.out", "w");
     char linha[256];
 	
     // Abre o arquivo para leitura
@@ -105,21 +107,20 @@ char* u32toSUper(uint32_t num) {
 	uint8_t executa = 1;
 	// Enquanto executa for verdadeiro
 	#define inicioLoop 
+	
 	while(executa) {
 		// Cadeia de caracteres da instrucao
 		char instrucao[30] = { 0 };
 		// Declarando operandos
-		uint8_t z = 0, x = 0, i = 0, y = 0;
-		uint32_t pc = 0, xyl = 0, sr = 0;
-		uint64_t temp = 0;
-		R[0] = 0;
-		unsigned int resultado = 0;
+		uint8_t z = 0, x = 0, i = 0, y = 0, sraux = 0;
+		uint32_t pc = 0, xyl = 0;
+		uint64_t temp = 0,resultado = 0;
 		// Carregando a instrucao de 32 bits (4 bytes) da memoria indexada pelo PC (R29) no registrador IR (R28)
 		// E feita a leitura redundante com MEM8 e MEM32 para mostrar formas equivalentes de acesso
 		// Se X (MEM8) for igual a Y (MEM32), entao X e Y sao iguais a X | Y (redundancia)
 		R[28] = ((MEM8[R[29] + 0] << 24) | (MEM8[R[29] + 1] << 16) | (MEM8[R[29] + 2] << 8) | (MEM8[R[29] + 3] << 0)) | MEM32[R[29] >> 2];
 		// Obtendo o codigo da operacao (6 bits mais significativos)
-		uint8_t opcode = (R[28] & (0b111111 << 26)) >> 26;
+		uint8_t opcode = (R[28] & (0b111111 << 26)) >> 26, opcode2 = 0;
 		// Decodificando a instrucao buscada na memoria
 		#define inicioSwitch
 		switch(opcode) {
@@ -194,14 +195,14 @@ char* u32toSUper(uint32_t num) {
 				R[z] = R[x] + R[y];
 				resultado = R[x] + R[y];
 				//Zn
-				if (R[z] == 0){sr = 0x00000040;};
+				if (R[z] == 0){sr = 0b01000000;};
 				//Sn
-				if ((R[z] >> 31) & 1){sr = 0x00000010;};
+				if ((R[z] >> 31) & 1){sr = 0b00010000;};
 				// Pegando os bits de (R[x][31] == R[y][31] ) && (R[z][31] != R[x][31])
 				// Ov 
-				if ((((R[x] >> 31) & 1) == ((R[y] >> 31) & 1)) && (((R[z] >> 31) & 1) != ((R[x] >> 31) & 1))) { sr = 0x00000008; }
+				if ((((R[x] >> 31) & 1) == ((R[y] >> 31) & 1)) && (((R[z] >> 31) & 1) != ((R[x] >> 31) & 1))) { sr = sr | 0b00001000; };
 				// Cy
-				if ((resultado < R[x]) || (resultado < R[y])){sr = 0x00000001;};
+				if ((resultado < R[x]) || (resultado < R[y])){sr = 0b00000001;};
 				sprintf(instrucao, "add %s,%s,%s",  u32toS(z),  u32toS(x),  u32toS(y));
 				fprintf(output,"0x%08X:\t%-25s\t%s=%s+%s=0x%08X,SR=0x%08X\n", R[29], instrucao, u32toSUper(z),u32toSUper(x),u32toSUper(y), R[z],sr);
 				
@@ -216,14 +217,14 @@ char* u32toSUper(uint32_t num) {
 				R[z] = R[x] - R[y];
 				resultado = R[x] - R[y];
 				//Zn
-				if (R[z] == 0){sr = 0x00000040;};
+				if (R[z] == 0){sr = 0b01000000;};
 				//Sn
-				if ((R[z] >> 31) & 1){sr = 0x00000010;};
+				if ((R[z] >> 31) & 1){sr = 0b00010000;};
 				// Pegando os bits de (R[x][31] == R[y][31] ) && (R[z][31] != R[x][31])
 				// Ov 
-				if ((((R[x] >> 31)) != ((R[y] >> 31) )) && (((R[z] >> 31)) != ((R[x] >> 31)))) { sr = 0x00000008; }
+				if ((((R[x] >> 31)) != ((R[y] >> 31) )) && (((R[z] >> 31)) != ((R[x] >> 31)))) { sr = 0b00001000; };
 				// Cy
-				if ((resultado < R[x]) || (resultado < R[y])){sr = 0x00000001;};
+				if (resultado >> 32){sr = 0b00000001;};
 				sprintf(instrucao, "sub %s,%s,%s",  u32toS(z),  u32toS(x),  u32toS(y));
 				fprintf(output,"0x%08X:\t%-25s\t%s=%s-%s=0x%08X,SR=0x%08X\n", R[29], instrucao, u32toSUper(z),u32toSUper(x),u32toSUper(y), R[z],sr);
 				
@@ -252,14 +253,15 @@ char* u32toSUper(uint32_t num) {
 				// cmp
 				xyl = R[x] - R[y];
 				resultado = R[x] - R[y];
-				if (xyl == 0){sr = 0x00000040;};
+				//ZN
+				if (xyl == 0){sr = 0b01000000;};
 				//Sn
-				if ((xyl >> 31) & 1){sr = 0x00000010;};
+				if ((xyl >> 31) & 1){sr = 0b00010000;};
 				// Pegando os bits de (R[x][31] == R[y][31] ) && (R[z][31] != R[x][31])
 				// Ov 
-				if ((((R[x] >> 31) & 1) != ((R[y] >> 31) & 1)) && (((xyl >> 31) & 1) != ((R[x] >> 31) & 1))) { sr = 0x00000008; }
+				if ((((R[x] >> 31) & 1) != ((R[y] >> 31) & 1)) && (((xyl >> 31) & 1) != ((R[x] >> 31) & 1))) {  sr = 0b00001000; };
 				// Cy
-				if ((resultado < R[x]) || (resultado < R[y])){sr = 0x00000001;};
+				if ((resultado < R[x]) || (resultado < R[y])){sr = 0b00000001;};
 				sprintf(instrucao, "cmp %s,%s",  u32toS(x),  u32toS(y));
 				fprintf(output,"0x%08X:\t%-25s\tSR=0x%08X\n", R[29], instrucao, sr);
 			break;
@@ -280,8 +282,8 @@ char* u32toSUper(uint32_t num) {
 				x = (R[28] & (0b11111 << 16)) >> 16;
 				y = (R[28] & (0b11111 << 11)) >> 11;
 				R[z] = R[x] | R[y];
-				if (R[z] == 0){sr = 0x00000040;};
-				if ((R[z] >> 31) & 1){sr = 0x00000010;};
+				if (R[z] == 0){sr = 0b01000000;};
+				if ((R[z] >> 31) & 1){sr = 0b01000000;};
 				sprintf(instrucao, "or %s,%s,%s",  u32toS(z),u32toS(x), u32toS(y));
 				fprintf(output,"0x%08X:\t%-25s\t%s=%s|%s=0x%08X,SR=0x%08X\n", R[29], instrucao, u32toSUper(z),u32toSUper(x),u32toSUper(y), R[z],sr);
 			break;
@@ -290,8 +292,8 @@ char* u32toSUper(uint32_t num) {
 				z = (R[28] & (0b11111 << 21)) >> 21;
 				x = (R[28] & (0b11111 << 16)) >> 16;
 				R[z] = ~R[x];
-				if (R[z] == 0){sr = 0x00000040;};
-				if ((R[z] >> 31) & 1){sr = 0x00000010;};
+				if (R[z] == 0){sr = 0b01000000;};
+				if ((R[z] >> 31) & 1){sr = 0b01000000;};
 				sprintf(instrucao, "not %s,%s",  u32toS(z),u32toS(x));
 				fprintf(output,"0x%08X:\t%-25s\t%s=~%s=0x%08X,SR=0x%08X\n", R[29], instrucao, u32toSUper(z),u32toSUper(x),R[z],sr);
 			break;
@@ -301,16 +303,16 @@ char* u32toSUper(uint32_t num) {
 				x = (R[28] & (0b11111 << 16)) >> 16;
 				y = (R[28] & (0b11111 << 11)) >> 11;
 				R[z] = R[x] ^ R[y];
-				if (R[z] == 0){sr = 0x00000040;};
-				if ((R[z] >> 31) & 1){sr = 0x00000010;};
+				if (R[z] == 0){sr = 0b01000000;};
+				if ((R[z] >> 31) & 1){sr = 0b01000000;};
 				sprintf(instrucao, "xor %s,%s,%s",  u32toS(z),u32toS(x), u32toS(y));
 				fprintf(output,"0x%08X:\t%-25s\t%s=%s^%s=0x%08X,SR=0x%08X\n", R[29], instrucao, u32toSUper(z),u32toSUper(x),u32toSUper(y), R[z],sr);
 			break;
 			#define objetoMul
 			case 0b000100:
-				opcode = (R[28] >> 8) & 0b111;
+				opcode2 = (R[28] >> 8) & 0b111;
 				#define mul
-				switch(opcode){
+				switch(opcode2){
 					case 0b000:
 						z = (R[28] & (0b11111 << 21)) >> 21;
 						x = (R[28] & (0b11111 << 16)) >> 16;
@@ -319,14 +321,14 @@ char* u32toSUper(uint32_t num) {
 						temp = R[x] * R[y];
 						// bits mais significativos ? 
 						R[i] = (temp >> 32);
-						R[z] = (temp << 32);
+						R[z] = (temp << 32) >> 32;
 						temp = ((uint64_t)R[i] << 32) | R[z];
-						if (temp == 0){sr = 0x00000040;};
-						if (R[i] == 0){sr = 0x00000001;};
+						if (temp == 0){sr = 0b01000000;};
+						if (R[i] != 0){sr = 0b00000001;};
 						temp = R[x] * R[y];
 						
 						sprintf(instrucao, "mul %s,%s,%s,%s", u32toS(i), u32toS(z),u32toS(x), u32toS(y));
-						fprintf(output,"0x%08X:\t%-25s\t%s:%s=%s*%s=0x%016X,SR=0x%08X\n", R[29], instrucao, u32toSUper(i),u32toSUper(z),u32toSUper(x),u32toSUper(y), temp,sr);
+						fprintf(output,"0x%08X:\t%-25s\t%s:%s=%s*%s=0x%016X,SR=0x%08X\n", R[29], instrucao, u32toSUper(i),u32toSUper(z),u32toSUper(x),u32toSUper(y), R[z],sr);
 						break;
 					#define sla
 					case 0b011:
@@ -336,13 +338,88 @@ char* u32toSUper(uint32_t num) {
 						i = (R[28] << 27) >> 27;
 						temp = (((int64_t)R[z] << 32) | R[y]) * potencia(2,i+1);
 						int32_t temp_low_32_bits = (int32_t)temp; // Obtém os 32 bits menos significativos de temp
-						R[y] = temp_low_32_bits;
-						if (R[z] == 0 || temp_low_32_bits == 0){sr = 0x00000040;};
-						if (R[z] != 0 ){sr = 0x00000001;};
+						if (!z){R[z] = 0;}else{R[z] = temp >> 32;};
+						
+						R[x] = temp_low_32_bits;
+						if (temp == 0){sr = 0b01000000;};
+						if (R[z] != 0 ){sr = 0b00001000;};
 						
 						sprintf(instrucao, "sla %s,%s,%s,%d", u32toS(z), u32toS(x),u32toS(y), i);
-						fprintf(output,"0x%08X:\t%-25s\t%s:%s=%s<<%d=0x%016X,SR=0x%08X\n", R[29], instrucao, u32toSUper(z),u32toSUper(x),u32toSUper(y),i+1,temp_low_32_bits,sr);
+						fprintf(output,"0x%08X:\t%-25s\t%s:%s=%s<<%d=0x%016X,SR=0x%08X\n", R[29], instrucao,
+						u32toSUper(z),
+						u32toSUper(x),
+						u32toSUper(y),
+						i+1,
+						temp_low_32_bits,sr);
 						break;
+						#define sll
+					case 0b001:
+						z = (R[28] & (0b11111 << 21)) >> 21;
+						x = (R[28] & (0b11111 << 16)) >> 16;
+						y = (R[28] & (0b11111 << 11)) >> 11;
+						i = (R[28] << 27) >> 27;
+						temp = (((uint64_t)R[z] << 32) | R[y]) * potencia(2,i+1);
+						temp_low_32_bits = (uint32_t)temp; // Obtém os 32 bits menos significativos de temp
+						R[z] = temp >> 32;
+						R[x] = temp_low_32_bits;
+						if (temp == 0){sr = 0b01000000;};
+						if (R[z] != 0 ){sr = 0x00000001;};
+						sprintf(instrucao, "sll %s,%s,%s,%d", u32toS(z), u32toS(x),u32toS(y), i);
+						fprintf(output,"0x%08X:\t%-25s\t%s:%s=%s:%s<<%d=0x%016X,SR=0x%08X\n",
+						R[29],
+						instrucao,
+						u32toSUper(z),
+						u32toSUper(x),
+						u32toSUper(z),
+						u32toSUper(y),
+						i+1,R[x],
+						sr);
+						break;
+						#define muls
+					case 0b010:
+						z = (R[28] & (0b11111 << 21)) >> 21;
+						x = (R[28] & (0b11111 << 16)) >> 16;
+						y = (R[28] & (0b11111 << 11)) >> 11;
+						i = (R[28] << 27) >> 27;
+						temp = R[x] * R[y];
+						// bits mais significativos ? 
+						R[i] = (temp >> 32);
+						R[z] = (temp << 32) >> 32;
+						temp = ((int64_t)R[i] << 32) | R[z];
+						if (temp == 0){sr = 0b01000000;};
+						if (R[i] != 0){sr = 0b00000001;};
+						temp = R[x] * R[y];
+						
+						sprintf(instrucao, "muls %s,%s,%s,%s", u32toS(i), u32toS(z),u32toS(x), u32toS(y));
+						fprintf(output,"0x%08X:\t%-25s\t%s:%s=%s*%s=0x%016X,SR=0x%08X\n", R[29], instrucao,
+						u32toSUper(i),
+						u32toSUper(z),
+						u32toSUper(x),
+						u32toSUper(y),
+						R[z],
+						sr);
+						break;
+						#define div
+					case 0b100:
+						z = (R[28] & (0b11111 << 21)) >> 21;
+						x = (R[28] & (0b11111 << 16)) >> 16;
+						y = (R[28] & (0b11111 << 11)) >> 11;
+						i = (R[28] << 27) >> 27;
+						
+						if (R[z] == 0){sraux = sraux | 0b01000000;};
+						if (R[y] == 0){sraux = sraux | 0b00100000;};
+						if (R[i] == !0){sraux = sraux | 0b00000001;};
+						if (sraux == 0){sr = sr;}else{ sr = sraux;};
+						sprintf(instrucao, "div %s,%s,%s,%s", u32toS(i), u32toS(z),u32toS(x), u32toS(y));
+						fprintf(output,"0x%08X:\t%-25s\t%s:%s=%s%%%s=0x%08X,SR=0x%08X\n", R[29], instrucao,
+						u32toSUper(i),
+						u32toSUper(z),
+						u32toSUper(x),
+						u32toSUper(y),
+						R[z],
+						sr);
+						break;
+					
 				}
 				break;
 
