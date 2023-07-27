@@ -115,6 +115,8 @@ char* u32toSUper(uint32_t num) {
 		uint8_t z = 0, x = 0, i = 0, y = 0, sraux = 0;
 		uint32_t pc = 0, xyl = 0;
 		uint64_t temp = 0,resultado = 0;
+		int64_t temps = 0;
+		int32_t temps32 = 0;
 		// Carregando a instrucao de 32 bits (4 bytes) da memoria indexada pelo PC (R29) no registrador IR (R28)
 		// E feita a leitura redundante com MEM8 e MEM32 para mostrar formas equivalentes de acesso
 		// Se X (MEM8) for igual a Y (MEM32), entao X e Y sao iguais a X | Y (redundancia)
@@ -134,9 +136,9 @@ char* u32toSUper(uint32_t num) {
 				// Execucao do comportamento
 				R[z] = xyl;
 				// Formatacao da instrucao
-				sprintf(instrucao, "mov r%u,%u", z, xyl);
+				sprintf(instrucao, "mov %s,%u", u32toS(z), xyl);
 				// Formatacao de saida em tela (deve mudar para o arquivo de saida)
-				fprintf(output,"0x%08X:\t%-25s\tR%u=0x%08X\n", R[29], instrucao, z, xyl);
+				fprintf(output,"0x%08X:\t%-25s\t%s=0x%08X\n", R[29], instrucao, u32toSUper(z), xyl);
 				break;
 			// l8
 			case 0b011000:
@@ -308,6 +310,15 @@ char* u32toSUper(uint32_t num) {
 				sprintf(instrucao, "xor %s,%s,%s",  u32toS(z),u32toS(x), u32toS(y));
 				fprintf(output,"0x%08X:\t%-25s\t%s=%s^%s=0x%08X,SR=0x%08X\n", R[29], instrucao, u32toSUper(z),u32toSUper(x),u32toSUper(y), R[z],sr);
 			break;
+			#define calli
+			case 0b0111001:
+				x = (R[28] & (0b11111 << 16)) >> 16;
+				i =  R[28] & 0x03FFFFFF;
+				fprintf(output,"0x%08X     0x%08X\n", R[28], i);
+		
+				sprintf(instrucao, "call %s,%s,%s",  u32toS(z),u32toS(x), u32toS(y));
+				fprintf(output,"0x%08X:\t%-25s\t%s=%s^%s=0x%08X\n", R[29], instrucao, u32toSUper(z),u32toSUper(x),u32toSUper(y), R[z]);
+			break;
 			#define objetoMul
 			case 0b000100:
 				opcode2 = (R[28] >> 8) & 0b111;
@@ -408,7 +419,7 @@ char* u32toSUper(uint32_t num) {
 						
 						if (R[z] == 0){sraux = sraux | 0b01000000;};
 						if (R[y] == 0){sraux = sraux | 0b00100000;};
-						if (R[i] == !0){sraux = sraux | 0b00000001;};
+						if (R[i] != 0){sraux = sraux | 0b00000001;};
 						if (sraux == 0){sr = sr;}else{ sr = sraux;};
 						sprintf(instrucao, "div %s,%s,%s,%s", u32toS(i), u32toS(z),u32toS(x), u32toS(y));
 						fprintf(output,"0x%08X:\t%-25s\t%s:%s=%s%%%s=0x%08X,SR=0x%08X\n", R[29], instrucao,
@@ -437,7 +448,7 @@ char* u32toSUper(uint32_t num) {
 	fprintf(output,"[END OF SIMULATION]\n");
 	 
 	// Fechando os arquivos
-	//fclose(input);
+	fclose(input);
 	fclose(output);
 	// Finalizando programa
 	return 0;
