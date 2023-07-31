@@ -115,8 +115,8 @@ int main(int argc, char *argv[]) {
     // Cadeia de caracteres da instrucao
     char instrucao[30] = {0};
     // Declarando operandos
-    uint8_t z = 0, x = 0, i = 0, y = 0, sraux = 0;
-    uint32_t pc = 0, xyl = 0;
+    uint8_t z = 0, x = 0, i = 0, y = 0, w = 0, sraux = 0;
+    uint32_t pc = 0, xyl = 0, j = 0;
     uint64_t temp = 0, resultado = 0;
     int64_t temps = 0;
     int32_t temps32 = 0, a = 0, b = 0;
@@ -404,18 +404,22 @@ int main(int argc, char *argv[]) {
        fprintf(output, "0x%08X:\t%-25s\tPC=MEM[0x%08X]=0x%08X\n", pc,
               instrucao,R[30], MEM32[R[30] >> 2]);
       continue;
-      //call1
+	  #define call1
       case 0b011110:
       pc = R[29];
       temp32 = R[30];
       x = (R[28] & (0b11111 << 16)) >> 16;
-      temps32 = (int32_t)((R[28] << 16) >> 16); 
+      j = (int32_t)((R[28] << 21) >> 21); 
       MEM32[R[30] >> 2] = R[29] + 4;
       R[30] = R[30] - 4;
-      R[29] = (R[x] + temps32) << 2;
+      printf("%08X\n", R[29]);
+      
+      R[29] = (R[x] + j) << 2;
+      printf("%08X\n", R[29]);
       sprintf(instrucao, "call [%s+%d]",u32toS(x) ,temps32);
       fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X,MEM[0x%08X]=0x%08X\n", pc,
               instrucao,R[29],temp32, MEM32[temp32 >> 2]);
+      if(R[29] == 0){executa = 0;};
       continue;
       //Addi
       case 0b010010:
@@ -455,7 +459,7 @@ break;
     case 0b000100:
       opcode2 = (R[28] >> 8) & 0b111;
       switch (opcode2) {
-      //Mul
+      #define mul
       case 0b000:
         z = (R[28] & (0b11111 << 21)) >> 21;
         x = (R[28] & (0b11111 << 16)) >> 16;
@@ -465,7 +469,7 @@ break;
         temp = R[x] * R[y];
         // bits mais significativos ?
         R[i] = (temp >> 32);
-        R[z] = (temp << 32) >> 32;
+        R[z] = (uint32_t)temp;
         if (temp == 0) {
           sraux = sraux | 0b01000000;
         };
@@ -491,8 +495,7 @@ break;
         y = (R[28] & (0b11111 << 11)) >> 11;
         i = (R[28] << 27) >> 27;
         temp = (((int64_t)R[z] << 32) | R[y]) * potencia(2, i + 1);
-        
-        int32_t temp_low_32_bits = (temp << 32) >> 32;
+     
         R[z] = temp >> 32;
         
         R[x] = (temp << 32) >> 32;// Obtém os 32 bits menos significativos de temp
@@ -525,7 +528,9 @@ break;
           x = (R[28] & (0b11111 << 16)) >> 16;
           y = (R[28] & (0b11111 << 11)) >> 11;
           i = R[28] & 0x1F;
-          temp = (((int64_t)R[z] << 32) | (R[y]) / potencia(2, i + 1));
+          temp = (((int64_t)R[z]) | (R[y]) / potencia(2, i + 1));
+          a = temp >> 32;
+          b = (int32_t)temp;
           // Obtém os 32 bits menos significativos de temp
           R[z] = a;
           R[x] = b;
@@ -549,7 +554,8 @@ break;
                   i);
           fprintf(output, "0x%08X:\t%-25s\t%s:%s=%s>>%d=0x%08X%08X,SR=0x%08X\n",
                   R[29], instrucao, u32toSUper(z), u32toSUper(x), u32toSUper(y),
-                  i + 1, R[z],R[x], sr);   
+                  i + 1, R[z],R[x], sr);  
+          if (R[29] == 0){executa = 0;}; 
         break;
 
         
@@ -638,6 +644,7 @@ break;
                 R[29], instrucao, u32toSUper(i), u32toSUper(z), u32toSUper(x),
                 u32toSUper(y), R[z], sr);
         break;
+	  
       }
       break;
     //subi
@@ -662,6 +669,56 @@ break;
         fprintf(output, "0x%08X:\t%-25s\t%s=%s-%d=0x%08X,SR=0x%08X\n", R[29],
               instrucao, u32toSUper(z), u32toSUper(x), temps32, R[z], sr);
       break;
+      #define muli
+	  case 0b010100:
+	   z = (R[28] & (0b11111 << 21)) >> 21;
+       x = (R[28] & (0b11111 << 16)) >> 16;
+       temps32 = (int16_t)R[28];
+       temps32 = (int32_t)temps32;
+       R[z] = (int32_t)R[x] * temps32;
+       sprintf(instrucao, "muli %s,%s,%d", u32toS(z), u32toS(x), temps32);
+        fprintf(output, "0x%08X:\t%-25s\t%s=%s*0x%08X=0x%08X,SR=0x%08X\n",
+                R[29], instrucao, u32toSUper(z), u32toSUper(x),
+                temps32,R[z], sr);
+      break;
+      #define divi
+	  case 0b010101:
+	   z = (R[28] & (0b11111 << 21)) >> 21;
+       x = (R[28] & (0b11111 << 16)) >> 16;
+       temps32 = (int16_t)R[28];
+       temps32 = (int32_t)temps32;
+       if (temps32 != 0){R[z] = (int32_t)R[x] / temps32;};
+       
+       sprintf(instrucao, "divi %s,%s,%d", u32toS(z), u32toS(x), temps32);
+        fprintf(output, "0x%08X:\t%-25s\t%s=%s/0x%08X=0x%08X,SR=0x%08X\n",
+                R[29], instrucao, u32toSUper(z), u32toSUper(x),
+                temps32,R[z], sr);
+      break;
+      #define modi
+      case 0b010110:
+	   z = (R[28] & (0b11111 << 21)) >> 21;
+       x = (R[28] & (0b11111 << 16)) >> 16;
+       temps32 = (int16_t)R[28];
+       temps32 = (int32_t)temps32;
+       if (temps32 != 0){R[z] = (int32_t)R[x] % temps32;};
+       
+       sprintf(instrucao, "modi %s,%s,%d", u32toS(z), u32toS(x), temps32);
+        fprintf(output, "0x%08X:\t%-25s\t%s=%s%%0x%08X=0x%08X,SR=0x%08X\n",
+                R[29], instrucao, u32toSUper(z), u32toSUper(x),
+                temps32,R[z], sr);
+      break;
+      #define push
+      case 0b001010:
+		 z = (R[28] & (0b11111 << 21)) >> 21;
+		 x = (R[28] & (0b11111 << 16)) >> 16;
+		 //v
+		 y = (R[28] & (0b11111 << 11)) >> 11;
+		 i = (R[28] & (0b11111 << 6)) >> 6;
+		 w = R[28] & 0b11111;
+		printf("%d %d %d %d %d",i,w,x,y,z);
+	  break;
+
+     
     // Instrucao desconhecida 
     default:
       // Exibindo mensagem de erro
