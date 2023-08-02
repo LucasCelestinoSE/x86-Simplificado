@@ -780,7 +780,7 @@ int main(int argc, char *argv[]) {
         sprintf(instrucao, "div %s,%s,%s,%s", u32toS(i), u32toS(z), u32toS(x),
                 u32toS(y));
         fprintf(output,
-                "0x%08X:\t%-25s\t%s=%s%%%s=0x%08X,%s=%s/%s=0x%08XSR=0x%08X\n",
+                "0x%08X:\t%-25s\t%s=%s%%%s=0x%08X,%s=%s/%s=0x%08X,SR=0x%08X\n",
                 R[29], instrucao, u32toSUper(i), u32toSUper(x), u32toSUper(y),
                 R[i], u32toSUper(z), u32toSUper(x), u32toSUper(y), R[z], sr);
         break;
