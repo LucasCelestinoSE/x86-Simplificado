@@ -1,0 +1,28 @@
+#include <stdio.h>
+
+// Função que imprime as variáveis que são diferentes de 0
+void imprimirVariaveis(int variables[], int size, const char *str) {
+    printf("%s ",str);
+    for (int i = 0; i < size; i++) {
+        if (variables[i] == 0) {
+            for (int j = i - 1; j >= 0; j--) {
+                printf("%d ",variables[j]); // Adiciona um espaço após o valor de variables[j]
+            }
+            break; // Movido o break para dentro do loop interno
+        }
+    }
+}
+
+int main() {
+    int v = 1;
+    int w = 2;
+    int x = 1;
+    int y = 0;
+    int z = 5;
+    int variables[] = {v, w, x, y, z};
+    int size = sizeof(variables) / sizeof(variables[0]);
+
+    imprimirVariaveis(variables, size, "push");
+
+    return 0;
+}
