@@ -1,0 +1,29 @@
+#include <stdio.h>
+
+int main() {
+    int v = 1;
+    int w = 2;
+    int x = 1;
+    int y = 0;
+    int z = 5;
+    int SP = 24;
+    int SPaux = SP;
+    int MEM32[32] = {0};
+    int variables[] = {v, w, x, y, z};
+    int size = sizeof(variables) / sizeof(variables[0]);
+
+    for (int i = 0; i < size; i++) {
+        if (variables[i] == 0) {
+            for (int j = i - 1; j >= 0; j--) {
+                if (variables[j] != 0) {
+                    MEM32[SP] = variables[j];
+                    printf("%d ", MEM32[SP]);
+                    SP -= 4;
+                }
+            }
+            break;
+        }
+    }
+
+    return 0;
+}
