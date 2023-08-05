@@ -149,40 +149,93 @@ int main(int argc, char *argv[]) {
       fprintf(output, "0x%08X:\t%-25s\t%s=0x%08X\n", R[29], instrucao,
               u32toSUper(z), xyl);
       break;
+    #define l8
     case 0b011000:
       // Otendo operandos
       z = (R[28] & (0b11111 << 21)) >> 21;
       x = (R[28] & (0b11111 << 16)) >> 16;
-      a = R[28] & 0xFFFF;
+      a = (int32_t)R[28] & 0xFFFF;
       // Execucao do comportamento com MEM8 e MEM32
-      R[z] = MEM32[(R[x] + a) >> 2];
-
+      
+      if (a % 4 == 0){
+        R[z] = MEM32[(R[x] + a) >> 2];
+        sprintf(instrucao, "l8 r%u,[r%u%s%i]", z, x, (a >= 0) ? ("+") : (""), a);
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=0x%02X\n", R[29],
+              instrucao, z, R[x] + a, R[z] >> 24);
+      }
+      if (a % 4 == 1){
+        R[z] = MEM32[(R[x] + a) >> 2];
+        sprintf(instrucao, "l8 r%u,[r%u%s%i]", z, x, (a >= 0) ? ("+") : (""), a);
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=0x%02X\n", R[29],
+              instrucao, z, R[x] + a, (R[z] & 0x00FF0000) >> 16);
+      }
+      if (a % 4 == 2){
+        R[z] = MEM32[(R[x] + a) >> 2];
+        sprintf(instrucao, "l8 r%u,[r%u%s%i]", z, x, (a >= 0) ? ("+") : (""), a);
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=0x%02X\n", R[29],
+              instrucao, z, R[x] + a, (R[z] & 0x0000FF00) >> 8);
+      }
+      if (a % 4 == 3){
+         R[z] = MEM32[(R[x] + a) >> 2];
+        sprintf(instrucao, "l8 r%u,[r%u%s%i]", z, x, (a >= 0) ? ("+") : (""), a);
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=0x%02X\n", R[29],
+              instrucao, z, R[x] + a, R[z] & 0x000000FF);
+      }
       // Formatacao da instrucao
-      sprintf(instrucao, "l8 r%u,[r%u%s%i]", z, x, (i >= 0) ? ("+") : (""), i);
+      
       // Formatacao de saida em tela (deve mudar para o arquivo de saida)
-      fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=0x%02X\n", R[29],
-              instrucao, z, R[x] + a, R[z]);
+  
       break;
-    // l32
+    
+    #define l16
+    case 0b011001:
+      // Otendo operandos
+      z = (R[28] & (0b11111 << 21)) >> 21;
+      x = (R[28] & (0b11111 << 16)) >> 16;
+      a = (int32_t)R[28] & 0xFFFF;
+      
+      if (a % 2 == 0){
+        R[z] = MEM32[(R[x] + a) >> 1] >> 16;
+        sprintf(instrucao, "l16 r%u,[r%u%s%i]", z, x, (a >= 0) ? ("+") : (""), a);
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=0x%04X\n", R[29],
+              instrucao, z, R[x] + a << 1, R[z]);
+      }
+      if (a % 2 == 1){
+        R[z] = (MEM32[(R[x] + a) >> 1] << 16) >> 16;
+        sprintf(instrucao, "l16 r%u,[r%u%s%i]", z, x, (a >= 0) ? ("+") : (""), a);
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=0x%04X\n", R[29],
+              instrucao, z, R[x] + a << 1, R[z]);
+      }
+    
+      
+      // Formatacao da instrucao
+      
+      // Formatacao de saida em tela (deve mudar para o arquivo de saida)
+  
+      break;
+       
+    #define l32
     case 0b011010:
       // Otendo operandos
       z = (R[28] & (0b11111 << 21)) >> 21;
       x = (R[28] & (0b11111 << 16)) >> 16;
-      i = R[28] & 0xFFFF;
-      // Execucao do comportamento com MEM8 e MEM32
-      R[z] = ((MEM8[((R[x] + i) << 2) + 0] << 24) |
-              (MEM8[((R[x] + i) << 2) + 1] << 16) |
-              (MEM8[((R[x] + i) << 2) + 2] << 8) |
-              (MEM8[((R[x] + i) << 2) + 3] << 0)) |
-             MEM32[R[x] + i];
+      a = (int32_t)R[28] & 0xFFFF;
+      
+      
+        R[z] = MEM32[(R[x] + a)];
+        sprintf(instrucao, "l32 r%u,[r%u%s%i]", z, x, (a >= 0) ? ("+") : (""), a);
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=0x%08X\n", R[29],
+              instrucao, z, (R[x] + a) << 2, R[z]);
+      
+    
+      
       // Formatacao da instrucao
-      sprintf(instrucao, "l32 r%u,[r%u%s%i]", z, x, (i >= 0) ? ("+") : (""), i);
+      
       // Formatacao de saida em tela (deve mudar para o arquivo de saida)
-      fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=0x%08X\n", R[29],
-              instrucao, z, (R[x] + i) << 2, R[z]);
+  
       break;
       // bun
-
+    #define bun
     case 0b110111:
       // Armazenando o PC antigo
       pc = R[29];
@@ -203,6 +256,7 @@ int main(int argc, char *argv[]) {
       fprintf(output, "0x%08X:\t%-25s\tCR=0x00000000,PC=0x00000000\n", R[29],
               instrucao);
       break;
+   
 // Fazer o resto depois (Ov, Zn, CY, SN)
 // Add
 #define add
@@ -437,6 +491,7 @@ int main(int argc, char *argv[]) {
         executa = 0;
       };
       continue;
+    
     // Addi
     case 0b010010:
       z = (R[28] & (0b11111 << 21)) >> 21;
@@ -480,9 +535,10 @@ int main(int argc, char *argv[]) {
       w = R[28] & 0b11111;
       sp = R[30];
       if (i == 0) {
-        sprintf(instrucao, "push - ");
-        fprintf(output, "0x%08X:\t%-25s\tMEM[0x%08X]{0x%08X}={}\n", R[29],
+        sprintf(instrucao, "push -");
+        fprintf(output, "0x%08X:\t%-25s\tMEM[0x%08X]{}={}\n", R[29],
                 instrucao, R[30], sp);
+        break;
       } else {
         MEM32[sp >> 2] = R[i];
         R[30] -= 4;
@@ -491,6 +547,7 @@ int main(int argc, char *argv[]) {
         sprintf(instrucao, "push %s", u32toS(i));
         fprintf(output, "0x%08X:\t%-25s\tMEM[0x%08X]{0x%08X}={%s}\n", R[29],
                 instrucao, sp, MEM32[sp >> 2], u32toS(i));
+        break;
       } else {
         MEM32[R[30] >> 2] = R[w];
         R[30] -= 4;
@@ -498,8 +555,9 @@ int main(int argc, char *argv[]) {
       if (x == 0) {
         sprintf(instrucao, "push %s %s", u32toS(i), u32toS(w));
         fprintf(output, "0x%08X:\t%-25s\tMEM[0x%08X]{%0x08X,0x%08X}={%s,%s}\n",
-                R[29], instrucao, sp, MEM32[sp >> 2], MEM32[(sp + 4) >> 2],
+                R[29], instrucao, sp, MEM32[sp >> 2], MEM32[(sp - 4) >> 2],
                 u32toS(i), u32toS(w));
+        break;
       } else {
         MEM32[R[30] >> 2] = R[x];
         R[30] -= 4;
@@ -509,8 +567,9 @@ int main(int argc, char *argv[]) {
         fprintf(
             output,
             "0x%08X:\t%-25s\tMEM[0x%08X]{0x%08X,0x%08X,0x%08X}={%s,%s,%s}\n",
-            R[29], instrucao, sp, MEM32[sp >> 2], R[w], R[x], u32toS(i),
+            R[29], instrucao, sp, MEM32[sp >> 2],MEM32[(sp -4) >> 2], MEM32[(sp - 8) >> 2], u32toS(i),
             u32toS(w), u32toS(x));
+        break;
       } else {
         MEM32[R[30] >> 2] = R[y];
         R[30] -= 4;
@@ -521,31 +580,180 @@ int main(int argc, char *argv[]) {
         fprintf(output,
                 "0x%08X:\t%-25s\tMEM[0x%08X]{0x%08X,0x%08X,0x%08X,0x%08X}={%s,%"
                 "s,%s,%s}\n",
-                R[29], instrucao, sp, MEM32[sp >> 2], R[w], R[x], R[y],
+                R[29], instrucao, sp, MEM32[sp >> 2], MEM32[(sp - 4) >> 2], MEM32[(sp - 8) >> 2], MEM32[(sp - 12) >> 2],
                 u32toS(i), u32toS(w), u32toS(x), u32toS(y));
+        break;
       } else {
         MEM32[R[30] >> 2] = R[z];
-        sprintf(instrucao, "push %s %s %s %s", u32toS(i), u32toS(w), u32toS(x),
-                u32toS(y));
+        R[30] -= 4;
+        sprintf(instrucao, "push %s %s %s %s %s", u32toS(i), u32toS(w), u32toS(x),
+                u32toS(y),u32toS(z));
         fprintf(output,
-                "0x%08X:\t%-25s\tMEM[0x%08X]{0x%08X,0x%08X,0x%08X,0x%08X,0x%"
-                "08X}={%s,%s,%s,%s,%s}\n",
-                R[29], instrucao, sp, MEM32[sp >> 2], R[w], R[x], R[y], R[z],
+                "0x%08X:\t%-25s\tMEM[0x%08X]{0x%08X,0x%08X,0x%08X,0x%08X,0x%08X}={%s,%s,%s,%s,%s}\n",
+                R[29], instrucao, sp, MEM32[sp >> 2], MEM32[(sp - 4) >> 2], MEM32[(sp - 8) >> 2], MEM32[(sp - 12) >> 2], MEM32[(sp - 16) >> 2],
                 u32toS(i), u32toS(w), u32toS(x), u32toS(y), u32toS(z));
+        
       };
       break;
-    case 0b011011:
-      x = (R[28] & (0b11111 << 16)) >> 16;
-      z = (R[28] & (0b11111 << 21)) >> 21;
-      temps32 = (int16_t)R[28];
-      temps32 = (int32_t)temps32;
-      MEM32[R[x] + temps32] = R[z];
-      sprintf(instrucao, "s8 [%s+%d],%s", u32toS(x), i, u32toS(z));
-      fprintf(output, "0x%08X:\t%-25s\t%s:%s=%s*%s=0x%08X%08X,SR=0x%08X\n",
-              R[29], instrucao, u32toSUper(i), u32toSUper(z), u32toSUper(x),
-              u32toSUper(y), R[i], R[z], sr);
+      #define pop
+    case 0b001011:
+      z = (R[28] >> 21) & 0b11111;
+      x = (R[28] >> 16) & 0b11111;
+      y = (R[28] >> 11) & 0b11111;
+      i = (R[28] >> 6) & 0b11111;
+      w = R[28] & 0b11111;
+      sp = R[30];
+      if (i == 0) {
+        sprintf(instrucao, "pop -");
+        fprintf(output, "0x%08X:\t%-25s\t{}=MEM[0x%08X]{}\n", R[29],
+                instrucao, R[30]);
+        break;
+      } else {
+        MEM32[sp >> 2] = R[i];
+        R[30] += 4;
+      };
+      if (w == 0) {
+        sprintf(instrucao, "pop %s", u32toS(i));
+        fprintf(output, "0x%08X:\t%-25s\t{%s}=MEM[0x%08X]{%0x%08X}\n", R[29],
+                instrucao,u32toS(i), sp, MEM32[sp >> 2]);
+        break;
+      } else {
+        MEM32[R[30] >> 2] = R[w];
+        R[30] += 4;
+      };
+      if (x == 0) {
+        sprintf(instrucao, "pop %s,%s", u32toS(i), u32toS(w));
+        fprintf(output, "0x%08X:\t%-25s\t{%s,%s}=MEM[0x%08X]{0x%08X,0x%08X}\n", R[29],
+                instrucao,u32toS(i),u32toS(w), sp, MEM32[sp >> 2],MEM32[(sp + 4 )>> 2]);
+        break;
+      } else {
+        MEM32[R[30] >> 2] = R[x];
+        R[30] += 4;
+      };
+      if (y == 0) {
+        sprintf(instrucao, "pop %s %s %s ", u32toS(i), u32toS(w), u32toS(x));
+        fprintf(output, "0x%08X:\t%-25s\t{%s,%s,s}=MEM[0x%08X]{%0x08X,0x%08X,0x%08X}\n", R[29],
+                instrucao,u32toS(i),u32toS(w),u32toS(x), sp, MEM32[sp >> 2],MEM32[(sp + 4 )>> 2],MEM32[(sp + 8 ) >> 2]);
+        break;
+      } else {
+        MEM32[R[30] >> 2] = R[y];
+        R[30] += 4;
+      };
+      if (z == 0) {
+        sprintf(instrucao, "pop %s %s %s %s", u32toS(i), u32toS(w), u32toS(x),
+                u32toS(y));
+        fprintf(output, "0x%08X:\t%-25s\t{%s,%s,s,%s}=MEM[0x%08X]{0x%08X,0x%08X,0x%08X,0x%08X}\n", R[29],
+                instrucao,u32toS(i),u32toS(w),u32toS(x),u32toS(y), sp, MEM32[sp >> 2],MEM32[(sp + 4 )>> 2],MEM32[(sp + 8 )>> 2],MEM32[(sp + 12 )>> 2]);
+break;      } else {
+        MEM32[R[30] >> 2] = R[z];
+        R[30] += 4;
+        sprintf(instrucao, "pop %s %s %s %s %s", u32toS(i), u32toS(w), u32toS(x),
+                u32toS(y),u32toS(z));
+        fprintf(output, "0x%08X:\t%-25s\t{%s,%s,%s,%s,%s}=MEM[0x%08X]{0x%08X,0x%08X,0x%08X,0x%08X,0x%08X}\n", R[29],
+                instrucao,u32toS(i),u32toS(w),u32toS(x),u32toS(y),u32toS(z), sp, MEM32[sp >> 2],MEM32[(sp + 4 )>> 2],MEM32[(sp + 8 )>> 2],MEM32[(sp + 12 )>> 2],MEM32[(sp + 16 )>> 2]);
+        
+      };
       break;
+    #define s8
+    case 0b011011:
+      // Otendo operandos
+      z = (R[28] & (0b11111 << 21)) >> 21;
+      x = (R[28] & (0b11111 << 16)) >> 16;
+      a = (int32_t)R[28] & 0xFFFF;
+      // Execucao do comportamento com MEM8 e MEM32
+      
+      if (a % 4 == 0){
+        e = MEM32[(R[x] + a) >> 2] & 0x00FFFFFF;
+        xyl = R[z] & 0xFF000000;
+        
+        MEM32[(R[x] + a) >> 2] = e | xyl;
+        printf("Mod 0 0x%08X \n", MEM32[(R[x] + a) >> 2]);
+        sprintf(instrucao, "s8 %s,[%s%s%i],%s", u32toS(z), u32toS(x), (a >= 0) ? ("+") : (""), a,u32toS(z));
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=%s=0x%02X\n", R[29],
+              instrucao, z, (R[x] + a), u32toSUper(z), (MEM32[(R[x] + a) >> 2] >> 24));
+      }
+      if (a % 4 == 1){
+        e = MEM32[(R[x] + a) >> 2] & 0xFF00FFFF;
+        xyl = (R[z] & 0xFF) << 16;
+        printf("Mod 1 0x%08X, 0x%08X,0x%08X \n", MEM32[(R[x] + a) >> 2],e,xyl );
+        MEM32[(R[x] + a) >> 2] = e | xyl;
+        sprintf(instrucao, "s8 %s,[%s%s%i],%s", u32toS(z), u32toS(x), (a >= 0) ? ("+") : (""), a,u32toS(z));
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=%s=0x%02X\n", R[29],
+              instrucao, z, (R[x] + a), u32toSUper(z), (MEM32[(R[x] + a) >> 2] & 0x00FF0000) >> 16);
+      }
+        if (a % 4 == 2){
+        e = MEM32[(R[x] + a) >> 2] & 0xFFFF00FF;
+        xyl = (R[z] & 0x0000FF00);
+          
+  
+        MEM32[(R[x] + a) >> 2] = e | xyl;
+        printf("Mod 2 0x%08X, 0x%08X,0x%08X \n", MEM32[(R[x] + a) >> 2],e,xyl );
+        sprintf(instrucao, "s8 %s,[%s%s%i],%s", u32toS(z), u32toS(x), (a >= 0) ? ("+") : (""), a,u32toS(z));
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=%s=0x%02X\n", R[29],
+              instrucao, z, (R[x] + a), u32toSUper(z), MEM32[(R[x] + a) >> 2] & 0x0000FF00) >> 8;
+      }
+      if (a % 4 == 3){
+        e = MEM32[(R[x] + a) >> 2] & 0xFFFFFF00;
+        xyl = R[z] & 0x000000FF;
+        printf("Mod 3 0x%08X \n", xyl | e);
+        MEM32[(R[x] + a) >> 2] = MEM32[(R[x] + a) >> 2] | xyl;
+        sprintf(instrucao, "s8 %s,[%s%s%i],%s", u32toS(z), u32toS(x), (a >= 0) ? ("+") : (""), a,u32toS(z));
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=%s=0x%02X\n", R[29],
+              instrucao, z, (R[x] + a), u32toSUper(z),(MEM32[(R[x] + a) >> 2] & 0x000000FF) );
+      }
+      // Formatacao da instrucao
+      printf("Mod 3 0x%08X \n", xyl | e);
+      // Formatacao de saida em tela (deve mudar para o arquivo de saida)
+      break;
+      //s16
+       case 0b011100:
+      // Otendo operandos
+      z = (R[28] & (0b11111 << 21)) >> 21;
+      x = (R[28] & (0b11111 << 16)) >> 16;
+      a = (int32_t)R[28] & 0xFFFF;
+      // Execucao do comportamento com MEM8 e MEM32
+      
+      if (a % 2 == 0){
+        e = MEM32[(R[x] + a) >> 1] & 0x0000FFFF;
+        xyl = (R[z] & 0x0000FFFF) << 16;
+        printf("Mod 0x%08X\n", xyl);
+        MEM32[(R[x] + a) >> 1] = e | xyl;
+        sprintf(instrucao, "s16 %s,[%s%s%i],%s", u32toS(z), u32toS(x), (a >= 0) ? ("+") : (""), a,u32toS(z));
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=%s=0x%04X\n", R[29],
+              instrucao, z, (R[x] + a) << 1, u32toSUper(z), (MEM32[(R[x] + a) >> 1] >> 16));
+      }
+      if (a % 2 == 1){
+        e = MEM32[(R[x] + a) >> 1] & 0xFFFF0000;
+        xyl = R[z];
+        printf("Mod 0x%08X", xyl);
+        MEM32[(R[x] + a) >> 1] = e | xyl;
+        sprintf(instrucao, "s16 %s,[%s%s%i],%s", u32toS(z), u32toS(x), (a >= 0) ? ("+") : (""), a,u32toS(z));
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=%s=0x%04X\n", R[29],
+              instrucao, z, (R[x] + a) << 1, u32toSUper(z), (MEM32[(R[x] + a) >> 1] << 16) >> 16);
+      }
 
+      // Formatacao da instrucao
+      
+      // Formatacao de saida em tela (deve mudar para o arquivo de saida)
+      break;
+          #define s32
+       case 0b0011101:
+      // Otendo operandos
+      z = (R[28] & (0b11111 << 21)) >> 21;
+      x = (R[28] & (0b11111 << 16)) >> 16;
+      a = (int32_t)R[28] & 0xFFFF;
+      // Execucao do comportamento com MEM8 e MEM32
+      
+        MEM32[(R[x] + a)] = R[z];
+        sprintf(instrucao, "s32 %s,[%s%s%i],%s", u32toS(z), u32toS(x), (a >= 0) ? ("+") : (""), a,u32toS(z));
+        fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=%s=0x%08X\n", R[29],
+              instrucao, z, (R[x] + a) << 2, u32toSUper(z), (MEM32[(R[x] + a)]));
+      
+
+      // Formatacao da instrucao
+      
+      // Formatacao de saida em tela (deve mudar para o arquivo de saida)
+      break;
 #define classMul
     case 0b000100:
       opcode2 = (R[28] >> 8) & 0b111;
