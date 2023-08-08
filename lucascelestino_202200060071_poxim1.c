@@ -85,8 +85,8 @@ int main(int argc, char *argv[]) {
   // Abrindo os arquivos com as permissoes corretas
   // FILE* input = fopen(argv[1], "r");
 
-  FILE *input = fopen("intro.hex", "r");
-  FILE *output = fopen("intro.out", "w");
+  FILE *input = fopen(argv[1], "r");
+  FILE *output = fopen(argv[2], "w");
   char linha[256];
 
   // Abre o arquivo para leitura
