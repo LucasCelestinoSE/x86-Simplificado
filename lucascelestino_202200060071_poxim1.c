@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
     // Cadeia de caracteres da instrucao
     char instrucao[30] = {0};
     R[31] = sr;
-    uint8_t z = 0, x = 0, i = 0, y = 0, w = 0, sraux = 0;
+    uint8_t z = 0, x = 0, i = 0, y = 0, w = 0, sraux = 0, CY = 0, IR = 0,IV=0,OV=0,SN=0,ZD=0,ZN=0;
     uint32_t pc = 0, xyl = 0, j = 0, sp = 0;
     uint64_t temp = 0, resultado = 0;
     int64_t temps = 0;
@@ -267,6 +267,8 @@ int main(int argc, char *argv[]) {
       y = (R[28] & (0b11111 << 11)) >> 11;
       R[z] = R[x] + R[y];
       resultado = R[x] + R[y];
+      i = (resultado & 0x0000000100000000) >> 32;
+      printf("Resultado da soma: %08X\n", i);
       // zn
       if (R[z] == 0) {
         sr = sr | 0b01000000;
@@ -280,7 +282,7 @@ int main(int argc, char *argv[]) {
         sr = sr & 0b11101111;
       };
       // Cy
-      if (R[i] != 0) {
+      if (i) {
         sr = sr | 0b00000001;
       } else {
         sr = sr & 0b11111110;
@@ -472,16 +474,22 @@ int main(int argc, char *argv[]) {
       x = (R[28] & (0b11111 << 16)) >> 16;
       y = (R[28] & (0b11111 << 11)) >> 11;
       R[z] = R[x] | R[y];
+      
       if (R[z] == 0) {
         sr = sr | 0b01000000;
         } else {
-            sr = sr & 0b10111111; // Correção aqui
+            sr = sr & 0b10111111; 
         }
         if (((R[z] & 0x80000000) >> 31) == 1) {
         sr = sr | 0b00010000;
         } else {
-            sr = sr & 0b11101111; // Correção aqui
+            sr = sr & 0b11101111; 
         }
+      
+      
+      if(z == 31){
+        sr = R[x] | R[y];
+      }
       R[31] = sr;
       sprintf(instrucao, "or %s,%s,%s", u32toS(z), u32toS(x), u32toS(y));
       fprintf(output, "0x%08X:\t%-25s\t%s=%s|%s=0x%08X,SR=0x%08X\n", R[29],
@@ -1214,7 +1222,181 @@ break;      } else {
       fprintf(output, "0x%08X:\t%-25s\t%s=%s%%0x%08X=0x%08X,SR=0x%08X\n", R[29],
               instrucao, u32toSUper(z), u32toSUper(x), temps32, R[z], sr);
       break;
-
+#define bat
+      case 0b101011:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          xyl = (uint32_t)xyl;
+          ZN = (sr & 0b01000000) >> 6;
+          CY = (sr & 0b00000001);
+          if(ZN == 0 && CY == 0){
+            R[29] = R[29] + 4 + ((xyl) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "bat %d", xyl);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+          continue;
+      case 0b101100:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          xyl = (uint32_t)xyl;
+          ZN = (sr & 0b01000000) >> 6;
+          CY = (sr & 0b00000001);
+          if(ZN == 1 || CY == 1){
+            R[29] = R[29] + 4 + ((xyl) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "bbe %d", xyl);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+          continue;
+      case 0b101101:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          xyl = (uint32_t)xyl;
+          ZN = (sr & 0b01000000) >> 6;
+          CY = (sr & 0b00000001);
+          if(CY == 1){
+            R[29] = R[29] + 4 + ((xyl) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "bbt %d", xyl);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+          continue;
+      case 0b101010:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          xyl = (uint32_t)xyl;
+          CY = (sr & 0b00000001);
+          if(CY == 0){
+            R[29] = R[29] + 4 + ((xyl) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "bae %d", xyl);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+      continue;
+      case 0b110100:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          xyl = (uint32_t)xyl;
+          ZN = (sr & 0b01000000) >> 6;
+          if(!ZN){
+            R[29] = R[29] + 4 + ((xyl) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "bne %d", xyl);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+          continue;
+      case 0b101110:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          xyl = (uint32_t)xyl;
+          ZN = (sr & 0b01000000) >> 6;
+          if(ZN){
+            R[29] = R[29] + 4 + ((xyl) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "beq %d", xyl);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+          continue;
+      case 0b110011:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          temps32 = (int32_t)xyl;
+          SN = (sr & 0b00010000) >> 4;
+          OV = (sr & 0b00001000) >> 3;
+          if(SN != OV){
+            R[29] = R[29] + 4 + ((temps32) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "blt %d", temps32);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+          continue;
+      case 0b101111:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          temps32 = (int32_t)xyl;
+          SN = (sr & 0b00010000) >> 4;
+          OV = (sr & 0b00001000) >> 3;
+          if(SN == OV){
+            R[29] = R[29] + 4 + ((temps32) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "bge %d", temps32);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+          continue;
+      case 0b110010:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          temps32 = (int32_t)xyl;
+          SN = (sr & 0b00010000) >> 4;
+          OV = (sr & 0b00001000) >> 3;
+          ZN = (sr & 0b01000000) >> 6;
+          if(ZN == 1 || SN != OV){
+            R[29] = R[29] + 4 + ((temps32) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "ble %d", temps32);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+          continue;
+      case 0b110000:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          temps32 = (int32_t)xyl;
+          SN = (sr & 0b00010000) >> 4;
+          OV = (sr & 0b00001000) >> 3;
+          ZN = (sr & 0b01000000) >> 6;
+          if(ZN == 0 && SN == OV){
+            R[29] = R[29] + 4 + ((temps32) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "bgt %d", temps32);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+          continue;
+      case 0b110101:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          xyl = (uint32_t)xyl;
+          IV = (sr & 0b0000100) >> 3;
+          if(IV){
+            R[29] = R[29] + 4 + ((temps32) << 2);
+          }else{
+            R[29] += 4;
+          }
+      sprintf(instrucao, "bni %d", temps32);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
+              R[29]);
+          continue;
     // Instrucao desconhecida
     default:
       // Exibindo mensagem de erro
