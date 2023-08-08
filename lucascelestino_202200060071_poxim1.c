@@ -1202,7 +1202,12 @@ break;      } else {
       temps32 = (int32_t)temps32;
       if (temps32 != 0) {
         R[z] = (int32_t)R[x] / temps32;
-      };
+      }
+      if (temps32 == 0) {
+            sr = sr | 0b00100000;
+        } else {
+            sr = sr & 0b11011111;
+        };
       R[31] = sr;
       sprintf(instrucao, "divi %s,%s,%d", u32toS(z), u32toS(x), temps32);
       fprintf(output, "0x%08X:\t%-25s\t%s=%s/0x%08X=0x%08X,SR=0x%08X\n", R[29],
@@ -1387,15 +1392,54 @@ break;      } else {
           pc = R[29];
           xyl = R[28] & 0x03FFFFFF;
           xyl = (uint32_t)xyl;
-          IV = (sr & 0b0000100) >> 3;
-          if(IV){
-            R[29] = R[29] + 4 + ((temps32) << 2);
+          IV = (sr & 0b0000100) >> 2;
+          if(IV == 0){
+            R[29] = R[29] + 4 + ((xyl) << 2);
           }else{
             R[29] += 4;
           }
-      sprintf(instrucao, "bni %d", temps32);
+      sprintf(instrucao, "bni %d", xyl);
       fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,
               R[29]);
+          continue;
+      case 0b110001:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          IV = (sr & 0b0000100) >> 2;
+          if(IV==1){
+            R[29] = R[29] + 4 + ((xyl) << 2);
+          }else{
+            R[29] += 4;
+          }
+          sprintf(instrucao, "biv %d", xyl);
+          fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,R[29]);
+          continue;
+      case 0b111000:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          ZD = (sr & 0b00100000) >> 5;
+          if(ZD==1){
+            R[29] = R[29] + 4 + ((xyl) << 2);
+          }else{
+            R[29] += 4;
+          }
+          sprintf(instrucao, "bzd %d", xyl);
+          fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,R[29]);
+          continue;
+      case 0b110110:
+          //variavel de 26 bits do bat
+          pc = R[29];
+          xyl = R[28] & 0x03FFFFFF;
+          ZD = (sr & 0b00100000) >> 5;
+          if(ZD==0){
+            R[29] = R[29] + 4 + ((xyl) << 2);
+          }else{
+            R[29] += 4;
+          }
+          sprintf(instrucao, "bnz %d", xyl);
+          fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao,R[29]);
           continue;
     // Instrucao desconhecida
     default:
