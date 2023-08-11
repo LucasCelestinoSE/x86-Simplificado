@@ -24,6 +24,12 @@ char *u32toS(int num) {
   }
 
   switch (num) {
+  case 26:
+    strcpy(buffer, "cr");
+    break;
+  case 27:
+    strcpy(buffer, "ipc");
+    break;
   case 28:
     strcpy(buffer, "ir");
     break;
@@ -50,6 +56,12 @@ char *u32toSUper(uint32_t num) {
   }
 #define UperCase
   switch (num) {
+  case 26:
+    strcpy(buffer, "CR");
+    break;
+  case 27:
+    strcpy(buffer, "IPC");
+    break;
   case 28:
     strcpy(buffer, "IR");
     break;
@@ -95,7 +107,7 @@ int main(int argc, char *argv[]) {
     R[31] = sr;
     uint8_t z = 0, x = 0, i = 0, y = 0, w = 0, sraux = 0, CY = 0, IR = 0,
             IV = 0, OV = 0, SN = 0, ZD = 0, ZN = 0;
-    uint32_t pc = 0, xyl = 0, j = 0, sp = 0;
+    uint32_t pc = 0, xyl = 0, j = 0, sp = 0, ipc=0,cr=0;
     uint64_t temp = 0, resultado = 0;
     int64_t temps = 0;
     int32_t temps32 = 0, a = 0, b = 0, c = 0, d = 0, e = 0;
@@ -222,22 +234,69 @@ int main(int argc, char *argv[]) {
       // Formatacao de saida em tela (deve mudar para o arquivo de saida)
       fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao, R[29] + 4);
       break;
-    // int
+    #define inteiro
     case 0b111111:
       // Parar a execucao
       a = (int32_t)R[28] & 0xFFFFF;
-      if(a == 0){
+      if (a == 0) {
         executa = 0;
+        break;
       }
-      
+      pc = R[29];
       // Formatacao da instrucao
+    
+      if (a == 5){
+        MEM32[R[30] >> 2] = R[29] +4,R[30] -= 4;
+        MEM32[R[30] >> 2] = R[26], R[30] -= 4;
+        MEM32[R[30] >> 2] = R[27], R[30] -= 4;
+        R[26] = a;
+        R[27] = R[29];
+        R[29] = 0x0000000C;
+        R[28] = 0xDC000004;
       sprintf(instrucao, "int %d", a);
       // Formatacao de saida em tela (deve mudar para o arquivo de saida)
-      fprintf(output, "0x%08X:\t%-25s\tCR=0x00000000,PC=0x00000000\n", R[29],
-              instrucao);
-      break;
+      fprintf(output, "0x%08X:\t%-25s\tCR=0x%08X,PC=0x%08X\n", pc,
+              instrucao,R[26],R[29]);
+      fprintf(output,"[SOFTWARE INTERRUPTION]\n");
+      }
+      
+      // a == i == true slide
+    
+      
+      continue;
+      
+#define reti
+    case 0b100000:{
+      pc = R[29];
+      
+      R[30] = R[30] + 4;
+      sp = R[30];
+      R[27] = MEM32[R[30] >> 2];
+      ipc = R[27];
+      R[30] = R[30] + 4;
+      R[26] = MEM32[R[30] >> 2];
+      cr = R[26];
+      R[30] = R[30] + 4;
+      
+      R[29] = MEM32[R[30] >> 2];
+      
+      // Formatacao da instrucao
 
-// Fazer o resto depois (Ov, Zn, CY, SN)
+      sprintf(instrucao, "reti");
+      // Formatacao de saida em tela (deve mudar para o arquivo de saida)
+      fprintf(output,"0x%08X:\t%-25s\tIPC=MEM[0x%08X]=0x%08X,CR=MEM[0x%08X]=0x%08X,PC=MEM[0x%08X]=0x%08X\n", pc,
+              instrucao,sp,ipc,sp+4,cr,sp+8,R[29]);
+      continue;
+      }
+      #define sbr
+    case 0b100001:{
+      z = (R[28] & (0b11111 << 21)) >> 21;
+      x = (R[28] & (0b11111 << 16)) >> 16;
+    sprintf(instrucao, "sbr %s", u32toS(z));       
+          fprintf(output,"0x%08X:\t%-25s\tIPC=MEM[0x%08X]=0x%08X,CR=MEM[0x%08X]=0x%08X,PC=MEM[0x%08X]=0x%08X\n", pc,
+              instrucao,sp,ipc,sp+4,cr,sp+8,R[29]);
+      break;
+      }
 // Add
 #define add
     case 0b000010:
@@ -253,7 +312,7 @@ int main(int argc, char *argv[]) {
       if (R[z] == 0) {
         sr = sr | 0b01000000;
       } else {
-        sr = sr & 10111111;
+        sr = sr & 0b10111111;
       };
       // SN
       if (((R[y] & 0x80000000) >> 31)) {
