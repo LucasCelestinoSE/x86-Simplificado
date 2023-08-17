@@ -15,7 +15,17 @@ int potencia(int x, int n) {
   else
     return x * potencia(x, n - 1);
 }
+void setBitBigEndian(unsigned char *data, int position, int value) {
+    int byteIndex = 3 - (position / 8);
+    int bitIndex = position % 8;
+    unsigned char mask = 1 << (7 - bitIndex);
 
+    if (value == 1) {
+        data[byteIndex] |= mask;
+    } else {
+        data[byteIndex] &= ~mask;
+    }
+}
 char *u32toS(int num) {
   char *buffer = (char *)malloc(MAX_LENGTH * sizeof(char));
   if (buffer == NULL) {
@@ -107,7 +117,7 @@ int main(int argc, char *argv[]) {
     R[31] = sr;
     uint8_t z = 0, x = 0, i = 0, y = 0, w = 0, sraux = 0, CY = 0, IR = 0,
             IV = 0, OV = 0, SN = 0, ZD = 0, ZN = 0;
-    uint32_t pc = 0, xyl = 0, j = 0, sp = 0, ipc=0,cr=0;
+    uint32_t pc = 0, xyl = 0, j = 0, sp = 0, ipc=0,cr=0,aux=0;
     uint64_t temp = 0, resultado = 0;
     int64_t temps = 0;
     int32_t temps32 = 0, a = 0, b = 0, c = 0, d = 0, e = 0;
@@ -239,8 +249,14 @@ int main(int argc, char *argv[]) {
       // Parar a execucao
       a = (int32_t)R[28] & 0xFFFFF;
       if (a == 0) {
+		  pc = R[29];
+		  R[29] = 0;
+		sprintf(instrucao, "int %d", a);
+      // Formatacao de saida em tela (deve mudar para o arquivo de saida)
+      fprintf(output, "0x%08X:\t%-25s\tCR=0x%08X,PC=0x%08X\n", pc,
+              instrucao,R[26],R[29]);
         executa = 0;
-        break;
+        continue;
       }
       pc = R[29];
       // Formatacao da instrucao
@@ -252,7 +268,6 @@ int main(int argc, char *argv[]) {
         R[26] = a;
         R[27] = R[29];
         R[29] = 0x0000000C;
-        R[28] = 0xDC000004;
       sprintf(instrucao, "int %d", a);
       // Formatacao de saida em tela (deve mudar para o arquivo de saida)
       fprintf(output, "0x%08X:\t%-25s\tCR=0x%08X,PC=0x%08X\n", pc,
@@ -292,9 +307,22 @@ int main(int argc, char *argv[]) {
     case 0b100001:{
       z = (R[28] & (0b11111 << 21)) >> 21;
       x = (R[28] & (0b11111 << 16)) >> 16;
-    sprintf(instrucao, "sbr %s", u32toS(z));       
-          fprintf(output,"0x%08X:\t%-25s\tIPC=MEM[0x%08X]=0x%08X,CR=MEM[0x%08X]=0x%08X,PC=MEM[0x%08X]=0x%08X\n", pc,
-              instrucao,sp,ipc,sp+4,cr,sp+8,R[29]);
+      i = R[28] & 0x00000001;
+      if(i){
+			  aux = 0x01 << x;
+			  R[z] |= aux;
+			  
+		    sprintf(instrucao, "sbr %s[%d]",u32toS(z), x);       
+			fprintf(output,"0x%08X:\t%-25s\t%s=0x%08X\n", pc,instrucao,u32toSUper(z),R[z]);
+			printf("%08X", R[z]);
+		  }else{
+			  aux = ~(0x01 << x);
+			  R[z] &= aux;
+			  sprintf(instrucao, "sbr %s[%d]",u32toS(z), x);       
+			fprintf(output,"0x%08X:\t%-25s\t%s=0x%08X", pc,instrucao,u32toSUper(z),R[z]);
+			printf("%08X", R[z]);
+			  };
+
       break;
       }
 // Add
@@ -1186,7 +1214,21 @@ int main(int argc, char *argv[]) {
           // R[z]
           // ZD
           if (R[y] == 0) {
-            sr = sr | 0b00100000;
+            sr = sr | 0b00100010;
+            sprintf(instrucao, "div %s,%s,%s,%s", u32toS(i), u32toS(z), u32toS(x),
+                u32toS(y));
+			fprintf(output,
+                "0x%08X:\t%-25s\t%s=%s%%%s=0x%08X,%s=%s/%s=0x%08X,SR=0x%08X\n",
+                R[29], instrucao, u32toSUper(i), u32toSUper(x), u32toSUper(y),
+                R[i], u32toSUper(z), u32toSUper(x), u32toSUper(y), R[z], sr);
+            fprintf(output,"[SOFTWARE INTERRUPITION]\n");
+            MEM32[R[30] >> 2] = R[29] +4,R[30] -= 4;
+			MEM32[R[30] >> 2] = R[26], R[30] -= 4;
+			MEM32[R[30] >> 2] = R[27], R[30] -= 4;
+			R[26] = a;
+			R[27] = R[29];
+			R[29] = 0x00000008;
+            continue;
           } else {
             sr = sr & 0b11011111;
           }
@@ -1511,9 +1553,16 @@ int main(int argc, char *argv[]) {
     // Instrucao desconhecida
     default:
       // Exibindo mensagem de erro
-      fprintf(output, "Instrucao desconhecida!\n");
+      fprintf(output, "[INVALID INSTRUCTION @ 0x%08X]\n", R[29]);
+      fprintf(output,"[SOFTWARE INTERRUPITION]\n");
+		MEM32[R[30] >> 2] = R[29] +4,R[30] -= 4;
+        MEM32[R[30] >> 2] = R[26], R[30] -= 4;
+        MEM32[R[30] >> 2] = R[27], R[30] -= 4;
+        R[26] = a;
+        R[27] = R[29];
+        R[29] = 0x00000004;
+        continue;
       // Parar a execucao
-      executa = 0;
     }
     // PC = PC + 4 (proxima instrucao)
     R[29] = R[29] + 4;
