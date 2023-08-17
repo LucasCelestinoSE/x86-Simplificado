@@ -36,3 +36,12 @@ i != 0 -> cr = i, ipc = PC, PC = 0x0000000C;
 >> Divisão por 0
 >>> É Mascarável e não fica pendente
 >>> IE = 0 -> ZD = 1, CR = 0, IPC = PC , PC = 0x00000008
+
+
+>> Registradores
+r26 = CR
+r27 = IPC
+r28 = IR
+r29 = PC
+r30 = SP
+r31 = SR
