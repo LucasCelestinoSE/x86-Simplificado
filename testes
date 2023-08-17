@@ -1,0 +1,6 @@
+void imprimirBits(uint8_t numero) {
+    for (int i = 7; i >= 0; i--) {
+        printf("%d", (numero >> i) & 1);
+    }
+    printf("\n");
+}
