@@ -9,6 +9,13 @@
 // Maximo de tam
 #define MAX_LENGTH 20
 // Funcao principal
+void imprimirBits(uint8_t numero) {
+	printf("Inicio da funcao \n");
+    for (int i = 7; i >= 0; i--) {
+        printf("%d", (numero >> i) & 1);
+    }
+    printf("\n");
+}
 int potencia(int x, int n) {
   if (n == 0)
     return 1;
@@ -116,7 +123,7 @@ int main(int argc, char *argv[]) {
     char instrucao[30] = {0};
     R[31] = sr;
     uint8_t z = 0, x = 0, i = 0, y = 0, w = 0, sraux = 0, CY = 0, IR = 0,
-            IV = 0, OV = 0, SN = 0, ZD = 0, ZN = 0;
+            IV = 0, OV = 0, SN = 0, ZD = 0, ZN = 0, IE = 0;
     uint32_t pc = 0, xyl = 0, j = 0, sp = 0, ipc=0,cr=0,aux=0;
     uint64_t temp = 0, resultado = 0;
     int64_t temps = 0;
@@ -305,6 +312,7 @@ int main(int argc, char *argv[]) {
       }
       #define sbr
     case 0b100001:{
+	  pc = R[29];
       z = (R[28] & (0b11111 << 21)) >> 21;
       x = (R[28] & (0b11111 << 16)) >> 16;
       i = R[28] & 0x00000001;
@@ -341,12 +349,6 @@ int main(int argc, char *argv[]) {
         sr = sr | 0b01000000;
       } else {
         sr = sr & 0b10111111;
-      };
-      // SN
-      if (((R[y] & 0x80000000) >> 31)) {
-        sr = sr | 0b00010000;
-      } else {
-        sr = sr & 0b11101111;
       };
       // Cy
       if (i) {
@@ -1215,6 +1217,9 @@ int main(int argc, char *argv[]) {
           // ZD
           if (R[y] == 0) {
             sr = sr | 0b00100010;
+            ZD = (sr & 0b00100000) >> 5;
+            IE = (sr & 0b00000010) >> 1;
+            
             sprintf(instrucao, "div %s,%s,%s,%s", u32toS(i), u32toS(z), u32toS(x),
                 u32toS(y));
 			fprintf(output,
@@ -1225,9 +1230,14 @@ int main(int argc, char *argv[]) {
             MEM32[R[30] >> 2] = R[29] +4,R[30] -= 4;
 			MEM32[R[30] >> 2] = R[26], R[30] -= 4;
 			MEM32[R[30] >> 2] = R[27], R[30] -= 4;
-			R[26] = a;
-			R[27] = R[29];
-			R[29] = 0x00000008;
+			if(IE == 0){
+				sr = sr | 0b00100000;
+				}else{
+					sr = sr | 0b00100000;
+					R[26] = 0;
+					R[27] = R[29];
+					R[29] = 0x00000008;
+					}
             continue;
           } else {
             sr = sr & 0b11011111;
@@ -1555,12 +1565,19 @@ int main(int argc, char *argv[]) {
       // Exibindo mensagem de erro
       fprintf(output, "[INVALID INSTRUCTION @ 0x%08X]\n", R[29]);
       fprintf(output,"[SOFTWARE INTERRUPITION]\n");
+		sr = sr | 0b00000100;
+		xyl = (R[28] & 0x04000000) >> 26;
+		
+		temps32 = (int32_t)xyl;
+		//Inicio do ISR para empilhamento
 		MEM32[R[30] >> 2] = R[29] +4,R[30] -= 4;
         MEM32[R[30] >> 2] = R[26], R[30] -= 4;
         MEM32[R[30] >> 2] = R[27], R[30] -= 4;
-        R[26] = a;
-        R[27] = R[29];
-        R[29] = 0x00000004;
+			R[26] = temps32;
+			R[27] = R[29];
+			R[29] = 0x00000004;
+			
+       
         continue;
       // Parar a execucao
     }
