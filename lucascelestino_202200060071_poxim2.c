@@ -103,14 +103,13 @@ int main(int argc, char *argv[]) {
   FILE *output = fopen("intro.out", "w");
   char linha[256];
   uint32_t R[32] = {0};
-  uint8_t *MEM8 = (uint8_t *)(calloc(32, 1024));
   uint32_t *MEM32 = (uint32_t *)(calloc(8, 1024));
+  uint32_t watchdogs = 0x80808080, contador = 0b0, corte_contador = 0b0;
   int linhaIndex = 0;
   while (fgets(linha, sizeof(linha), input) != NULL) {
-    sscanf(linha, "%x", &MEM32[linhaIndex]);
+    sscanf(linha, "%x", &MEM32[linhaIndex]); 
     linhaIndex++;
   }
-#define u32_para_String
 
   fprintf(output, "[START OF SIMULATION]\n");
   // Setando a condicao de execucao para verdadeiro
@@ -121,30 +120,23 @@ int main(int argc, char *argv[]) {
   while (executa) {
     // Cadeia de caracteres da instrucao
     char instrucao[30] = {0};
-    R[31] = sr;
+    R[31] |= sr;
     uint8_t z = 0, x = 0, i = 0, y = 0, w = 0, sraux = 0, CY = 0, IR = 0,
-            IV = 0, OV = 0, SN = 0, ZD = 0, ZN = 0, IE = 0;
+            IV = 0, OV = 0, SN = 0, ZD = 0, ZN = 0, IE = 0, espera = 0;
     uint32_t pc = 0, xyl = 0, j = 0, sp = 0, ipc=0,cr=0,aux=0;
     uint64_t temp = 0, resultado = 0;
     int64_t temps = 0;
     int32_t temps32 = 0, a = 0, b = 0, c = 0, d = 0, e = 0;
-    R[28] = ((MEM8[R[29] + 0] << 24) | (MEM8[R[29] + 1] << 16) |
-             (MEM8[R[29] + 2] << 8) | (MEM8[R[29] + 3] << 0)) |
-            MEM32[R[29] >> 2];
+    R[28] = MEM32[R[29] >> 2]; // testando 1 2 3
     uint8_t opcode = (R[28] & (0b111111 << 26)) >> 26, opcode2 = 0;
 
 #define inicioSwitch
     switch (opcode) {
-// mov
 #define mov
     case 0b000000:
       // Obtendo operandos
       z = (R[28] & (0b11111 << 21)) >> 21;
-      xyl = R[28] &
-            0x1FFFFF; // 0x1FFFFF == 00000001111111111111111111, 21 bits
-                      // reservados a xyl, e o resto acrescido de 0s á esquerda.
-      // R[28] & 0x1FFFFF, os 21 bits se preservam e são adicionados um padding
-      // Execucao do comportamento
+      xyl = R[28] & 0x1FFFFF; 
       R[z] = xyl;
       // Formatacao da instrucao
       sprintf(instrucao, "mov %s,%u", u32toS(z), xyl);
@@ -153,7 +145,7 @@ int main(int argc, char *argv[]) {
               u32toSUper(z), xyl);
       break;
 #define l8
-    case 0b011000:
+    case 0b011000:				
       // Otendo operandos
       z = (R[28] & (0b11111 << 21)) >> 21;
       x = (R[28] & (0b11111 << 16)) >> 16;
@@ -245,30 +237,32 @@ int main(int argc, char *argv[]) {
       // Armazenando o PC antigo
       pc = R[29];
       // Execucao do comportamento
-      R[29] = R[29] + ((R[28] & 0x3FFFFFF) << 2);
+    
+      a = R[28] & 0x03FFFFFF;
+      if ((a >> 25) == 0b1){
+        a |= 0xFC000000;
+      }
+      
+      R[29] = (int32_t)(R[29] + (a << 2));
       // Formatacao da instrucao
-      sprintf(instrucao, "bun %i", R[28] & 0x3FFFFFF);
+      sprintf(instrucao, "bun %i", a);
       // Formatacao de saida em tela (deve mudar para o arquivo de saida)
       fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao, R[29] + 4);
+    
+      
       break;
     #define inteiro
     case 0b111111:
-      // Parar a execucao
-      a = (int32_t)R[28] & 0xFFFFF;
-      if (a == 0) {
-		  pc = R[29];
-		  R[29] = 0;
-		sprintf(instrucao, "int %d", a);
-      // Formatacao de saida em tela (deve mudar para o arquivo de saida)
-      fprintf(output, "0x%08X:\t%-25s\tCR=0x%08X,PC=0x%08X\n", pc,
-              instrucao,R[26],R[29]);
-        executa = 0;
-        continue;
-      }
+      a = (R[28] & 0xFFFFF);
       pc = R[29];
-      // Formatacao da instrucao
-    
-      if (a == 5){
+      if (a == 0) {
+		sprintf(instrucao, "int %d", a);
+      R[26] = a;
+        R[27] = R[29];
+        R[29] = 0;
+      fprintf(output, "0x%08X:\t%-25s\tCR=0x%08X,PC=0x%08X\n", pc,instrucao,R[26],R[29]);
+        executa = 0;
+      }else{
         MEM32[R[30] >> 2] = R[29] +4,R[30] -= 4;
         MEM32[R[30] >> 2] = R[26], R[30] -= 4;
         MEM32[R[30] >> 2] = R[27], R[30] -= 4;
@@ -276,15 +270,10 @@ int main(int argc, char *argv[]) {
         R[27] = R[29];
         R[29] = 0x0000000C;
       sprintf(instrucao, "int %d", a);
-      // Formatacao de saida em tela (deve mudar para o arquivo de saida)
       fprintf(output, "0x%08X:\t%-25s\tCR=0x%08X,PC=0x%08X\n", pc,
               instrucao,R[26],R[29]);
       fprintf(output,"[SOFTWARE INTERRUPTION]\n");
       }
-      
-      // a == i == true slide
-    
-      
       continue;
       
 #define reti
@@ -359,11 +348,15 @@ int main(int argc, char *argv[]) {
       // Ov
       if ((((R[x] >> 31)) == ((R[y] >> 31))) &&
           (((R[z] >> 31)) != ((R[x] >> 31)))) {
-        sr = 0b00001000;
+        sr = sr | 0b00001000;
       } else {
         sr = sr & 0b11110111;
       };
-      R[31] = sr;
+      if (R[z] >> 31) {
+        sr = sr | 0b00010000;
+      } else {
+        sr = sr & 0b11101111;
+      };
       sprintf(instrucao, "add %s,%s,%s", u32toS(z), u32toS(x), u32toS(y));
       fprintf(output, "0x%08X:\t%-25s\t%s=%s+%s=0x%08X,SR=0x%08X\n", R[29],
               instrucao, u32toSUper(z), u32toSUper(x), u32toSUper(y), R[z], sr);
@@ -645,9 +638,6 @@ int main(int argc, char *argv[]) {
       sprintf(instrucao, "call [%s+%d]", u32toS(x), j);
       fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X,MEM[0x%08X]=0x%08X\n", pc,
               instrucao, R[29], temp32, MEM32[temp32 >> 2]);
-      if (R[29] == 0) {
-        executa = 0;
-      };
       continue;
 
     // Addi
@@ -938,24 +928,30 @@ int main(int argc, char *argv[]) {
 
       // Formatacao de saida em tela (deve mudar para o arquivo de saida)
       break;
-#define s32
+#define store32
     case 0b0011101:
-      // Otendo operandos
+    // Otendo operandos
       z = (R[28] & (0b11111 << 21)) >> 21;
       x = (R[28] & (0b11111 << 16)) >> 16;
       a = (int32_t)R[28] & 0xFFFF;
-      // Execucao do comportamento com MEM8 e MEM32
-
-      MEM32[(R[x] + a)] = R[z];
-      sprintf(instrucao, "s32 %s,[%s%s%i],%s", u32toS(z), u32toS(x),
+    
+	  if (((R[x] + a) << 2) == watchdogs){
+		  contador = R[z] + 1;
+      corte_contador = contador & 0x7FFFFFFF;
+		  sprintf(instrucao, "s32 [%s%s%i],%s", u32toS(x),
               (a >= 0) ? ("+") : (""), a, u32toS(z));
-      fprintf(output, "0x%08X:\t%-25s\tR%u=MEM[0x%08X]=%s=0x%08X\n", R[29],
-              instrucao, z, (R[x] + a) << 2, u32toSUper(z),
+      fprintf(output, "0x%08X:\t%-25s\tMEM[0x%08X]=%s=0x%08X\n", R[29],
+              instrucao, (R[x] + a) << 2, u32toSUper(z),
+              R[z]);
+		  break;
+		  }
+      MEM32[(R[x] + a)] = R[z];
+      sprintf(instrucao, "s32[%s%s%i],%s", u32toS(x),
+              (a >= 0) ? ("+") : (""), a, u32toS(z));
+      fprintf(output, "0x%08X:\t%-25s\tMEM[0x%08X]=%s=0x%08X\n", R[29],
+              instrucao,(R[x] + a) << 2, u32toSUper(z),
               (MEM32[(R[x] + a)]));
-
-      // Formatacao da instrucao
-
-      // Formatacao de saida em tela (deve mudar para o arquivo de saida)
+      
       break;
 #define classMul
     case 0b000100:
@@ -1032,11 +1028,12 @@ int main(int argc, char *argv[]) {
         break;
 #define sra
       case 0b111:
+        sr = R[31];
         z = (R[28] & (0b11111 << 21)) >> 21;
         x = (R[28] & (0b11111 << 16)) >> 16;
         y = (R[28] & (0b11111 << 11)) >> 11;
         i = R[28] & 0x1F;
-        temps = ((((int64_t)R[z]) << 32) | ((int32_t)R[y] >> (i + 1)));
+        temps = ((((uint64_t)R[z]) << 32) | R[y]) / potencia(2, i+1);
 
         a = (temps >> 32);
         b = (int32_t)temps;
@@ -1060,15 +1057,11 @@ int main(int argc, char *argv[]) {
         } else {
           sr = sr & 0b11110111;
         }
-        R[31] = sr;
         sprintf(instrucao, "sra %s,%s,%s,%d", u32toS(z), u32toS(x), u32toS(y),
                 i);
-        fprintf(output, "0x%08X:\t%-25s\t%s:%s=%s>>%d=0x%08X%08X,SR=0x%08X\n",
-                R[29], instrucao, u32toSUper(z), u32toSUper(x), u32toSUper(y),
+        fprintf(output, "0x%08X:\t%-25s\t%s:%s=%s:%s>>%d=0x%08X%08X,SR=0x%08X\n",
+                R[29], instrucao, u32toSUper(z), u32toSUper(x), u32toSUper(z),u32toSUper(y),
                 i + 1, R[z], R[x], sr);
-        if (R[29] == 0) {
-          executa = 0;
-        };
         break;
 
 #define sll
@@ -1226,7 +1219,7 @@ int main(int argc, char *argv[]) {
                 "0x%08X:\t%-25s\t%s=%s%%%s=0x%08X,%s=%s/%s=0x%08X,SR=0x%08X\n",
                 R[29], instrucao, u32toSUper(i), u32toSUper(x), u32toSUper(y),
                 R[i], u32toSUper(z), u32toSUper(x), u32toSUper(y), R[z], sr);
-            fprintf(output,"[SOFTWARE INTERRUPITION]\n");
+            fprintf(output,"[SOFTWARE INTERRUPTION]\n");
             MEM32[R[30] >> 2] = R[29] +4,R[30] -= 4;
 			MEM32[R[30] >> 2] = R[26], R[30] -= 4;
 			MEM32[R[30] >> 2] = R[27], R[30] -= 4;
@@ -1410,27 +1403,33 @@ int main(int argc, char *argv[]) {
       xyl = (uint32_t)xyl;
       CY = (sr & 0b00000001);
       if (CY == 0) {
-        R[29] = R[29] + 4 + ((xyl) << 2);
+        R[29] = R[29] + ((xyl) << 2);
       } else {
         R[29] += 4;
       }
       sprintf(instrucao, "bae %d", xyl);
       fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao, R[29]);
-      continue;
+      break;
     case 0b110100:
       // variavel de 26 bits do bat
       pc = R[29];
-      xyl = R[28] & 0x03FFFFFF;
-      xyl = (uint32_t)xyl;
       ZN = (sr & 0b01000000) >> 6;
-      if (!ZN) {
-        R[29] = R[29] + 4 + ((xyl) << 2);
-      } else {
-        R[29] += 4;
+      a = R[28] & 0x03FFFFFF;
+      if ((a >> 25) == 0b1){
+        a |= 0xFC000000;
       }
-      sprintf(instrucao, "bne %d", xyl);
-      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao, R[29]);
-      continue;
+      if (!ZN) {
+        R[29] = (R[29] + (a << 2) - 4);
+        
+      } else {
+    
+        sprintf(instrucao, "bne %d", a);
+        fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao, R[29]+4);
+        break;
+      }
+      sprintf(instrucao, "bne %d", a);
+      fprintf(output, "0x%08X:\t%-25s\tPC=0x%08X\n", pc, instrucao, R[29]+4);
+      break;
     case 0b101110:
       // variavel de 26 bits do bat
       pc = R[29];
@@ -1564,7 +1563,7 @@ int main(int argc, char *argv[]) {
     default:
       // Exibindo mensagem de erro
       fprintf(output, "[INVALID INSTRUCTION @ 0x%08X]\n", R[29]);
-      fprintf(output,"[SOFTWARE INTERRUPITION]\n");
+      fprintf(output,"[SOFTWARE INTERRUPTION]\n");
 		sr = sr | 0b00000100;
 		xyl = (R[28] & 0x04000000) >> 26;
 		
@@ -1579,17 +1578,33 @@ int main(int argc, char *argv[]) {
 			
        
         continue;
-      // Parar a execucao
     }
-    // PC = PC + 4 (proxima instrucao)
+    #define watchdogs
+    
+    if((contador >> 31)){
+      corte_contador -= 1;
+      
+      if(corte_contador == 0){
+        contador = 0b0;
+        IE = (R[31] & 0b00000010) >> 1;
+        if(IE){
+          fprintf(output,"[HARDWARE INTERRUPTION 1]\n");
+          R[26] = 0xE1AC04DA;
+          R[27] = R[29] + 4;
+          MEM32[R[30] >> 2] = R[29] + 4,R[30] -= 4;
+          MEM32[R[30] >> 2] = R[26], R[30] -= 4;
+          MEM32[R[30] >> 2] = R[27], R[30] -= 4;
+          R[29] = 0x00000010;
+          continue;
+        }
+
+      }
+    }
+    
     R[29] = R[29] + 4;
   }
-  // Exibindo a finalizacao da execucao
   fprintf(output, "[END OF SIMULATION]\n");
-
-  // Fechando os arquivos
   fclose(input);
   fclose(output);
-  // Finalizando programa
   return 0;
 }
